@@ -22,26 +22,24 @@ function eval_on_norns() {
 
 function find_norns() {
     local hosts=("norns.local" "norns-shield.local" "norns-grey.local")
-    local reachable=()
+    local available_hosts=()
+    
+    available_hosts=($(parallel -j3 'timeout 0.2 ping -c 1 {} >/dev/null 2>&1 && echo {} || echo ""' ::: "${hosts[@]}" | grep -v "^$"))
 
-    for host in "${hosts[@]}"; do
-        if timeout 0.3 ping -c 1 "$host" > /dev/null 2>&1; then
-            reachable+=("$host")
-        fi
-    done
-
-    if [ "${#reachable[@]}" -eq 1 ]; then
-        echo "${reachable[0]}"
-    elif [ "${#reachable[@]}" -gt 1 ]; then
-        echo "multiple norns found, choose one:"
-        select host in "${reachable[@]}"; do
+    local count=${#available_hosts[@]}
+    if [ $count -eq 0 ]; then
+        echo "norns.local"
+    elif [ $count -eq 1 ]; then
+        echo "${available_hosts[0]}"
+    else
+        echo "multiple norns found, choose one:" >&2
+        
+        select host in "${available_hosts[@]}"; do
             if [ -n "$host" ]; then
                 echo "$host"
                 break
             fi
         done
-    else
-        echo "norns.local"
     fi
 }
 
