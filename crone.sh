@@ -11,6 +11,31 @@ function eval_on_norns() {
     printf "%s\x1b\n" "$2" | websocat --protocol bus.sp.nanomsg.org "ws://$1:5556"
 }
 
+function find_norns() {
+    local hosts=("norns.local" "norns-shield.local" "norns-grey.local")
+    local reachable=()
+
+    for host in "${hosts[@]}"; do
+        if timeout 0.3 ping -c 1 "$host" > /dev/null 2>&1; then
+            reachable+=("$host")
+        fi
+    done
+
+    if [ "${#reachable[@]}" -eq 1 ]; then
+        echo "${reachable[0]}"
+    elif [ "${#reachable[@]}" -gt 1 ]; then
+        echo "multiple norns found, choose one:"
+        select host in "${reachable[@]}"; do
+            if [ -n "$host" ]; then
+                echo "$host"
+                break
+            fi
+        done
+    else
+        echo "norns.local"
+    fi
+}
+
 openeditor=
 openrepl=
 plain=
@@ -79,7 +104,12 @@ crone.sh -re -n grey
 done
 shift $(($OPTIND - 1))
 
-hostname="${hostname:-norns}.local"
+if [ "$hostname" ]
+then
+    hostname="${hostname:-norns}.local"
+else
+    hostname="$(find_norns)"
+fi
 
 if [[ -n "${1+x}" ]]; then
     sc_code="$1"
