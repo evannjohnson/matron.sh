@@ -23,12 +23,17 @@ function eval_on_norns() {
 function find_norns() {
     local hosts=("norns.local" "norns-shield.local" "norns-grey.local")
     local available_hosts=()
-    
-    available_hosts=($(parallel -j3 'timeout 0.2 ping -c 1 {} >/dev/null 2>&1 && echo {} || echo ""' ::: "${hosts[@]}" | grep -v "^$"))
+    local attempts=0
+
+    while [[ ${#available_hosts} -eq 0 && $attempts -lt 2 ]]
+    do
+        available_hosts=($(parallel -j3 'timeout 0.2 ping -c 1 {} >/dev/null 2>&1 && echo {} || echo ""' ::: "${hosts[@]}" | grep -v "^$"))
+    done
 
     local count=${#available_hosts[@]}
     if [ $count -eq 0 ]; then
-        echo "norns.local"
+        echo "couldn't find a norns"
+        exit 1
     elif [ $count -eq 1 ]; then
         echo "${available_hosts[0]}"
     else
